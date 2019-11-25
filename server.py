@@ -7,9 +7,8 @@ from datetime import datetime
 from itertools import zip_longest
 
 USER_MAP = {}
-CHANNEL_MAP = {}
 SOCKET_LIST = []
-NICKNAME_LIST = []
+NICK_MAP = {}
 CHANNEL_MAP = {}
 
 HOST = "127.0.0.1"
@@ -43,42 +42,116 @@ STATE_CONNECTION_NICK_SENT = 102
 STATE_CONNECTION_USER_SENT = 103
 STATE_CONNECTION_REGISTERED = 104
 
-RPL_WELCOME = lambda nick, user, uhost: "{host} 001 {nick} :Welcome to Internet Relay Network{nick}!{user}@{uhost}\r\n".format(host=HOST, nick=nick, user=user, uhost=uhost)
-RPL_YOURHOST = lambda nick: "{host} 002 {nick} :Your host is {servername}[{host}], running version {ver}\r\n".format(servername=SERVERNAME, host=HOST, ver=VERSION, nick=nick)
-RPL_CREATED = lambda nick: "{host} 003 {nick} :This server was created {date}\r\n".format(host=HOST, date=CREATION_DATE, nick=nick)
-RPL_MYINFO = lambda nick: "{host} 004 {nick} :{servername} {version} {user_modes} {channel_modes}".format(host=HOST, nick=nick, servername=SERVERNAME, version=VERSION, user_modes=USER_MODES, channel_modes=CHANNEL_MODES)
-RPL_JOIN = lambda nick, user, host, chan: "{nick}!{user}@{host} JOIN {chan}\r\n".format(nick=nick, user=user, host=host, chan=chan)
-RPL_PART = lambda nick, user, host, chan, reason="Leaving": "{nick}!{user}@{host} PART {chan} :{reason}\r\n".format(nick=nick, user=user, host=host, chan=chan, reason=reason)
-RPL_NOTOPIC = lambda nick, chan: "{host} 331 {nick} {chan} :Not topic is set\r\n".format(host=HOST, nick=nick, chan=chan)
-RPL_TOPIC = lambda nick, chan, topic: "{host} 332 {nick} {chan} :{topic}\r\n".format(host=HOST, nick=nick, chan=chan, topic=topic)
+RPL_WELCOME = lambda nick, user, uhost: ":{host} 001 {nick} :Welcome to Internet Relay Network\n{nick}!{user}@{uhost}\r\n".format(host=HOST, nick=nick, user=user, uhost=uhost)
+RPL_YOURHOST = lambda nick: ":{host} 002 {nick} :Your host is {servername}[{host}], running version {ver}\r\n".format(servername=SERVERNAME, host=HOST, ver=VERSION, nick=nick)
+RPL_CREATED = lambda nick: ":{host} 003 {nick} :This server was created {date}\r\n".format(host=HOST, date=CREATION_DATE, nick=nick)
+RPL_MYINFO = lambda nick: ":{host} 004 {nick} :{servername} {version} {user_modes} {channel_modes}\r\n".format(host=HOST, nick=nick, servername=SERVERNAME, version=VERSION, user_modes=USER_MODES, channel_modes=CHANNEL_MODES)
+RPL_JOIN = lambda nick, user, host, chan: ":{nick}!{user}@{host} JOIN {chan}\r\n".format(nick=nick, user=user, host=host, chan=chan)
+RPL_PART = lambda nick, user, host, chan, reason="Leaving": ":{nick}!{user}@{host} PART {chan} :{reason}\r\n".format(nick=nick, user=user, host=host, chan=chan, reason=reason)
+RPL_NOTOPIC = lambda nick, chan: ":{host} 331 {nick} {chan} :No topic is set\r\n".format(host=HOST, nick=nick, chan=chan)
+RPL_TOPIC = lambda nick, chan, topic: ":{host} 332 {nick} {chan} :{topic}\r\n".format(host=HOST, nick=nick, chan=chan, topic=topic)
+RPL_NICK = lambda nick, user, uhost, new_nick: ":{nick}!{user}@{uhost} NICK {new_nick}\r\n".format(nick=nick, user=user, uhost=uhost, new_nick=new_nick)
+RPL_PRIVMSG = lambda nick, user, uhost, target, msg: ":{nick}!{user}@{uhost} PRIVMSG {target} :{msg}\r\n".format(nick=nick, user=user, uhost=uhost, target=target, msg=msg)
+# Using '=' since we are not supporting private or secret channels
+RPL_NAMREPLY = lambda nick, chan, users: ":{host} 353 {nick} = {chan} :{users}\r\n".format(host=HOST, nick=nick, chan=chan, users=users)
+RPL_ENDOFNAMES = lambda nick, chan: ":{host} 366 {nick} {chan} :End of NAMES list\r\n".format(host=HOST, nick=nick, chan=chan)
 
-ERR_NOSUCHCHANNEL = lambda nick, chan: "{host} 403 {nick} {chan} :No such channel\r\n".format(host=HOST, nick=nick, chan=chan)
-ERR_TOOMANYTARGETS = lambda nick, target: "{host} 403 {nick}"
-ERR_NORECIPIENT = lambda nick, command: "{host} 411 {nick} :No recipient given ({command})".format(host=HOST, nick=nick, command=command)
-ERR_NONICKNAMEGIVEN = "{host} 431 * :No nickname given\r\n".format(host=HOST)
-ERR_NICKNAMEINUSE = lambda nick: "{host} 433 * {nick} :Nickname is already in use\r\n".format(host=HOST, nick=nick)  
-ERR_NOTONCHANNEL = lambda nick, chan: "{host} 442 {nick} {chan} :You're not on that channel\r\n".format(host=HOST, nick=nick, chan=chan)
-ERR_NOTREGISTERED = "{host} 451 * :You have not registered\r\n".format(host=HOST)
-ERR_NEEDMOREPARAMS = lambda nick, command: "{host} 461 {nick} {command} :Not enough parameters\r\n".format(host=HOST, nick=nick, command=command)
-ERR_ALREADYREGISTERED = lambda nick: "{host} 462 {nick} :Unauthorized command (already registered)\r\n".format(host=HOST, nick=nick)
-ERR_PASSWDMISMATCH = lambda nick: "{host} 464 {nick} :Password incorrect\r\n".format(host=HOST, nick=nick)
-ERR_BADCHANMASK = lambda nick, chan: "{host} 476 {nick} {chan} :Bad Channel Mask\r\n".format(host=HOST, nick=nick, chan=chan)
+ERR_NOSUCHNICK = lambda nick, target_nick: ":{host} 401 {nick} {target_nick} :No such nick/channel\r\n".format(host=HOST, nick=nick, target_nick=target_nick)
+ERR_NOSUCHCHANNEL = lambda nick, chan: ":{host} 403 {nick} {chan} :No such channel\r\n".format(host=HOST, nick=nick, chan=chan)
+ERR_CANNOTSENDTOCHAN = lambda nick, chan: ":{host} 404 {nick} {chan} :Cannot send to channel\r\n".format(host=HOST, nick=nick, chan=chan)
+ERR_TOOMANYTARGETS = lambda nick, target, err_code, abort_msg: ":{host} 407 {nick} {target} :{err_code} recipients\r\n. {abort_msg}".format(host=HOST, nick=nick, target=target, err_code=err_code, abort_msg=abort_msg)
+ERR_NORECIPIENT = lambda nick, command: ":{host} 411 {nick} :No recipient given ({command})\r\n".format(host=HOST, nick=nick, command=command)
+ERR_NOTEXTTOSEND = lambda nick: ":{host} 412 {nick} :No text to send\r\n".format(host=HOST, nick=nick)
+ERR_NONICKNAMEGIVEN = ":{host} 431 * :No nickname given\r\n".format(host=HOST)
+ERR_NICKNAMEINUSE = lambda nick: ":{host} 433 * {nick} :Nickname is already in use\r\n".format(host=HOST, nick=nick)  
+ERR_NOTONCHANNEL = lambda nick, chan: ":{host} 442 {nick} {chan} :You're not on that channel\r\n".format(host=HOST, nick=nick, chan=chan)
+ERR_NOTREGISTERED = ":{host} 451 * :You have not registered\r\n".format(host=HOST)
+ERR_NEEDMOREPARAMS = lambda nick, command: ":{host} 461 {nick} {command} :Not enough parameters\r\n".format(host=HOST, nick=nick, command=command)
+ERR_ALREADYREGISTERED = lambda nick: ":{host} 462 {nick} :Unauthorized command (already registered)\r\n".format(host=HOST, nick=nick)
+ERR_PASSWDMISMATCH = lambda nick: ":{host} 464 {nick} :Password incorrect\r\n".format(host=HOST, nick=nick)
+ERR_BADCHANMASK = lambda nick, chan: ":{host} 476 {nick} {chan} :Bad Channel Mask\r\n".format(host=HOST, nick=nick, chan=chan)
 
-def privmsg_handler(user: dict, params: list, sock: socket.socket) -> dict:
+def quit_handler(user: dict, params: list, sock: socket.socket):
+    quit_message = "Leaving"
+    if len(params) > 0:
+        quit_message = params[0]
+    
+    # Ignore return value since we are deleting the user
+    part_handler(user, ["0", quit_message], sock)
+
+    # Delete user from user map
+    USER_MAP.pop(sock.fileno())
+
+    # Delete nickname from nickname list
+    NICK_MAP.pop(user["nick"])
+
+    # Delete socket from socket list
+    SOCKET_LIST.remove(sock)        
+
+
+def privmsg_handler(user: dict, params: list, sock: socket.socket):
     if len(params) == 0:
         sock.send(ERR_NORECIPIENT(user["nick"], "PRIVMSG").encode())
-        return user
+        return
     
+    if len(params) == 1:
+        sock.send(ERR_NOTEXTTOSEND(user["nick"]).encode())
+        return
+
     if len(params) > 2:
-        sock.send()
+        sock.send(ERR_TOOMANYTARGETS( user["nick"], params[0], 
+            len(params), "Too many recipients").encode())
+        return
+    
+    target = params[0]
+    message = params[1]
 
-    # TODO: Handle ERR_CANNOTSENDTOCHAN ? 
+    # Check if network or server mask.
+    # Since we do not support cross server comms, just drop them
+    m = re.match(r'^([\$#]).*\.\w+?$', target)
+    if m:
+        return
 
-    # Drop all requests where target is host mask
-    print(params)
+    # Check if user@server or user%server is passed
+    # drop it
+    m = re.match(r'^\w+[@+].*$', target)
+    if m:
+        return
 
+    # Only options left are channel and client comms
+    m = re.match(r'^(?P<mask>[#@+!&])?\w+', target)
+    if not m:
+        return
+    
+    mask = m.group("mask")
 
-    return user
+    # If no mask, try to send to user
+    if not mask:
+        target_sock = NICK_MAP.get(target)
+        if not target_sock:
+            sock.send(ERR_NOSUCHNICK(user["nick"], target).encode())
+            return
+        # Send the message to the user
+        target_sock.send(RPL_PRIVMSG(user["nick"], user["user"], 
+                         user["host"], target, message).encode())
+
+    else:
+        # Find channel
+        channel = CHANNEL_MAP.get(target)
+        if not channel:
+            sock.send(ERR_CANNOTSENDTOCHAN(user["nick"], target).encode())
+            return
+
+        
+        users = channel.get("user_sockets", [])
+        for s in users:
+            # Don't echo back the message to the sender
+            if s == sock:
+                continue
+
+            s.send(RPL_PRIVMSG(user["nick"], user["user"],
+                      user["host"], target, message).encode())
+
 
 def part_handler(user: dict, params: list, sock: socket.socket) -> dict:
     if len(params) == 0:
@@ -101,6 +174,10 @@ def part_handler(user: dict, params: list, sock: socket.socket) -> dict:
             sock.send(ERR_NOTONCHANNEL(user["nick"], channel).encode())
             continue
 
+        # Notify all the users in the channel that the user has left
+        for s in CHANNEL_MAP[channel]["user_sockets"]:
+            s.send(RPL_PART(user["nick"], user["user"], user["host"], channel, reason).encode())
+
         # Remove the channel from user channels
         user["channels"].remove(channel)
 
@@ -108,12 +185,8 @@ def part_handler(user: dict, params: list, sock: socket.socket) -> dict:
         CHANNEL_MAP[channel]["user_nicks"].remove(user["nick"])
         CHANNEL_MAP[channel]["user_sockets"].remove(sock)
 
-        # Notify all the users in the channel that the user has left
-        for sock in CHANNEL_MAP[channel]["user_sockets"]:
-            sock.send(RPL_PART(user["nick"], user["user"], user["host"], channel, reason).encode())
-
         # If the channel has no users left - destroy it
-        if len(CHANNEL_MAP[channel["user_nicks"]]) == 0:
+        if len(CHANNEL_MAP[channel]["user_nicks"]) == 0:
             CHANNEL_MAP.pop(channel)
 
     return user
@@ -144,9 +217,8 @@ def join_handler(user: dict, params: list, sock: socket.socket) -> dict:
         passwords = params[1].split()
 
     for ch, p in zip_longest(channels, passwords, fillvalue=None):
-        # If channel name does not start with either & or #
+        # If channel name does not start with either &, +, !, #
         # return error
-
         chanmask = r'^(?P<chan>(?P<mask>[&#+!])\w+)$'                         
         m = re.match(chanmask, ch)
         if not m:
@@ -159,7 +231,6 @@ def join_handler(user: dict, params: list, sock: socket.socket) -> dict:
 
         # If the channel does not exist - create it
         if not channel:
-            # Set maks for future validations
             # Set the creator as the first user
             # Even if password was sent - ignore it
 
@@ -171,12 +242,12 @@ def join_handler(user: dict, params: list, sock: socket.socket) -> dict:
             # TODO: Add password checks?
 
             # If the user is already in the channel - skip it
+
             if user["nick"] in channel["user_nicks"]:
                 continue
             else:
                 channel["user_nicks"].append(user["nick"])
                 channel["user_sockets"].append(sock)
-
 
         # Check if user has any channels
         user_channels = user.get("channels")
@@ -185,24 +256,98 @@ def join_handler(user: dict, params: list, sock: socket.socket) -> dict:
         else:
             user["channels"].append(ch)
                                 
-        # Finally append the channel to the list
         CHANNEL_MAP[ch] = channel
 
         # Notify other users in the same channel that the person has joined
         # This also includes the newly joined user
-        for sock in channel["user_sockets"]:
-            sock.send(RPL_JOIN(user["nick"], user["user"], user["host"], ch).encode())
+        for s in channel["user_sockets"]:
+            s.send(RPL_JOIN(user["nick"], user["user"], user["host"], ch).encode())
 
-        # Also send back topic if exists
+        # Send back topic if exists
         channel_topic = channel.get("topic")
         if channel_topic:
             sock.send(RPL_TOPIC(user["nick"], ch, channel_topic).encode())
         else:
             sock.send(RPL_NOTOPIC(user["nick"], ch).encode())
 
+        # Send back user list
+        user_string = " ".join(channel["user_nicks"])
+        sock.send(RPL_NAMREPLY(user["nick"], ch, user_string).encode())
+        sock.send(RPL_ENDOFNAMES(user["nick"], ch).encode())
         
     return user
 
+def nick_handler(user: dict, params: list, sock: socket.socket) -> dict or None:
+    if len(params) == 0:
+        sock.send(ERR_NONICKNAMEGIVEN.encode())
+        return None
+
+    nickname = params[0]
+
+    # Check if the nickname is in use
+    if nickname in NICK_MAP:
+        sock.send(ERR_NICKNAMEINUSE(nickname).encode())
+        return None
+
+    elif user.get("nick"):
+        # Since it's the user who is chaging the nickname
+        # Change nicknames in all server lists if user has any
+        user_channels = user.get("channels", [])
+        for chan in user_channels:
+            channel = CHANNEL_MAP.get(chan)
+
+            if not channel:
+                continue
+            
+            if user["nick"] in channel["user_nicks"]: 
+                channel["user_nicks"].remove(user["nick"])
+                channel["user_nicks"].append(nickname)
+            
+            # Notify all users in the channel of users nick change
+            for s in channel["user_sockets"]:
+                s.send(RPL_NICK(user["nick"], user["user"], user["host"], nickname).encode())
+            
+        # Update nick list
+        if user["nick"] in NICK_MAP:
+            NICK_MAP.pop(user["nick"])
+            NICK_MAP[nickname] = sock
+
+        # If user was in not any channels reply only to the user
+        # so the client can update itself
+        if len(user_channels) == 0:
+            sock.send(RPL_NICK(user["nick"], user["user"], user["host"], nickname).encode())
+
+        user["nick"] = nickname
+
+    else:
+        NICK_MAP[nickname] = sock
+        user["nick"] = nickname
+        user["state"] = STATE_CONNECTION_NICK_SENT
+
+    return user
+
+def user_handler(user: dict, params: list, sock: socket.socket) -> dict or None:
+    if len(params) <  4:
+        sock.send(ERR_NEEDMOREPARAMS(user["nick"], "USER").encode())
+        return None
+
+    # If user has already registered, return an error
+    if user["state"] == STATE_CONNECTION_REGISTERED:
+        sock.send(ERR_ALREADYREGISTERED(user["nick"]))
+        return None
+
+    # <user> <mode> <unused> <realname>
+    # We only care about realname and user
+    user["user"] = params[0]
+    user["realname"] = params[3]
+    user["state"] = STATE_CONNECTION_REGISTERED
+
+    reply = RPL_WELCOME(user["nick"], user["user"], user["host"]) \
+        + RPL_YOURHOST(user["nick"]) + RPL_CREATED(user["nick"]) \
+        + RPL_MYINFO(user["nick"])
+    sock.send(reply.encode())
+
+    return user
 
 def main():
     main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -214,7 +359,6 @@ def main():
     print("Listening on {}:{}...".format(HOST, PORT))
     while True:
         r2r, _, _ = select.select(SOCKET_LIST, [], [], 0) 
-
         for sock in r2r:
             if  sock == main_socket:
                 incoming_socket, incoming_addr = main_socket.accept() 
@@ -230,7 +374,8 @@ def main():
                 user = USER_MAP[key]
 
                 # Read message from the socket, up to MAX_MSG_LEN 
-                message = sock.recv(MAX_MSG_LEN).decode()
+                message = sock.recv(MAX_MSG_LEN)
+                message = message.decode()
 
                 # Split the message by CR-LF
                 messages = message.split("\r\n")
@@ -255,60 +400,44 @@ def main():
                     if message:
                         params.append(message)
                     
+                    # Handle quit as top level
+                    if command == "QUIT":
+                        quit_handler(user, params, sock)
+                        break
+
                     if user["state"] == STATE_CONNECTION_REQUEST:
                         if command != "NICK":
-                            print("nick error: " + command)
                             sock.send(ERR_NOTREGISTERED.encode())
                             break
                         
-                        if len(params) == 0:
-                            print("params error in nick")
-                            sock.send(ERR_NONICKNAMEGIVEN.encode())
+                        user = nick_handler(user, params, sock)
+                        if not user:
                             break
 
-                        nickname = params[0]
-                        # Check if the nickname is in use
-                        if nickname in NICKNAME_LIST:
-                            sock.send(ERR_NICKNAMEINUSE(nickname).encode())
-                            break
-
-                        NICKNAME_LIST.append(nickname)
-
-                        user["nick"] = nickname
-                        user["state"] = STATE_CONNECTION_NICK_SENT
+                        USER_MAP[key] = user
 
                     elif user["state"] == STATE_CONNECTION_NICK_SENT:
                         if command != "USER":
-                            print("user error")
                             sock.send(ERR_NOTREGISTERED.encode())
                             break
-
-                        if len(params) <  4:
-                            print("params error user error")
-                            sock.send(ERR_NEEDMOREPARAMS.encode())
+                        
+                        user = user_handler(user, params, sock)
+                        if not user:
                             break
-
-                        # <user> <mode> <unused> <realname>
-                        # We only care about realname and user
-                        user["user"] = params[0]
-                        user["realname"] = params[3]
-                        user["state"] = STATE_CONNECTION_REGISTERED
-
-                        reply = RPL_WELCOME(user["nick"], user["user"], user["host"]) \
-                            + RPL_YOURHOST(user["nick"]) + RPL_CREATED(user["nick"]) \
-                            + RPL_MYINFO(user["nick"])
-                        sock.send(reply.encode())
+                        
+                        USER_MAP[key] = user
 
                     elif user["state"] == STATE_CONNECTION_REGISTERED:
-                        print(prefix)
                         if command == "JOIN":
-                            user = join_handler(user, params, sock)
+                            USER_MAP[key] = join_handler(user, params, sock)
                         elif command == "PART":
-                            user = part_handler(user, params, sock)
+                            USER_MAP[key] = part_handler(user, params, sock)
                         elif command == "PRIVMSG":
-                            user = privmsg_handler(user, params, sock)
-                    USER_MAP[key] = user
-
+                            privmsg_handler(user, params, sock)
+                        elif command == "NICK":
+                            USER_MAP[key] = nick_handler(user, params, sock)
+                        elif command == "USER":
+                            USER_MAP[key] = nick_handler(user, params, sock)
 
 if __name__ == '__main__':
     main()
