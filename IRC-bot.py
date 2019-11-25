@@ -1,6 +1,9 @@
 import socket
 import sys
 import re
+from datetime import datetime
+from random import randrange
+
 
 if len(sys.argv) != 6:
     print("Arguments: host:port nickname username realname #channel")
@@ -11,6 +14,8 @@ nick = sys.argv[2]
 user = sys.argv[3]
 real = sys.argv[4]
 channel = sys.argv[5]
+now = datetime.now()
+today = datetime.today().strftime("%A")
 
 RE_IRC_LINE = re.compile(
     """
@@ -45,6 +50,17 @@ client.send(('USER ' + user + ' 0 * :' + real + '\r\n').encode())
 client.send(('JOIN '+ channel + '\r\n').encode())
 
 
+# take random line from text file, alorithm taken from stackoverflow
+# https://stackoverflow.com/questions/40140660/print-random-line-from-txt-file/40140722
+def get_random_line(afile, default=None):
+    """Return a random line from the file (or default)."""
+    line = default
+    for i, aline in enumerate(afile, start=1):
+        if randrange(i) == 0:  # random int [0..i)
+            line = aline
+    return line
+
+
 # executed when ping is received
 def ping(me):
     # format and send appropriate pong
@@ -54,19 +70,42 @@ def ping(me):
     return
 
 
-# executed when channel message or pm is recived
+def get_chat_response(mes):
+    if mes.startswith("!time"):
+        return now.strftime("%H:%M:%S")
+    elif mes.startswith("!day"):
+        return today
+    return "Command Not Recognised"
+
+
+# executed when channel message or pm is received
 def privmsg(me):
-    # print("whole up")
+    reply = True
     par = me.group('params')
     mes = me.group('message')
+    pref = me.group('prefix')
     # print(f"P: {me.group('params')} \nM: {me.group('message')}")
-    # determines if message came from channel or private message
-    if par.startswith(" #"):
-        print(f"Message in channel {par}: {mes}")
-    else:
-        print(f"PM from {m.group('prefix')}: {mes}")
-    # print("Some charming lad is dming us")
 
+    # determines if message came from channel or private message
+    if par.startswith(" #"):  # channel
+        print(f"Message in channel {par}: {mes}")
+        recv = par
+        if mes.startswith("!"):
+            content = get_chat_response(mes)
+        else:
+            reply = False
+
+    else:  # private message
+        print(f"PM from {pref}: {mes}")
+        recv = pref.split('!')[0]
+        content = "AbCdEfGhIjKlMnOp"
+        with open('facts.txt') as file:
+            content = get_random_line(file)
+
+    if reply:
+        reply = "PRIVMSG " + recv + " :"+content+"\r\n"
+        print(reply)
+        client.send(reply.encode())
     return
 
 
