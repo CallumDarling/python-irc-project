@@ -14,6 +14,8 @@ nick = sys.argv[2]
 user = sys.argv[3]
 real = sys.argv[4]
 channel = sys.argv[5]
+now = datetime.now()
+today = datetime.today().strftime("%A")
 
 
 RE_IRC_LINE = re.compile(
