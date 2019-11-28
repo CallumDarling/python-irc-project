@@ -5,15 +5,19 @@ from datetime import datetime
 from random import randrange
 
 
-if len(sys.argv) != 6:
-    print("Arguments: host:port nickname username realname #channel")
+if len(sys.argv) != 3:
+    print("Arguments: host:port #channel")
     exit()
 
+#python IRC-bot.py localhost:6667 IRCBot IRCBOT "IRC Bot" #TestChannel
+
+
+
 host = sys.argv[1].split(":")
-nick = sys.argv[2]
-user = sys.argv[3]
-real = sys.argv[4]
-channel = sys.argv[5]
+nick = "IRCBot"
+user = "IRCBOT"
+real = "IRC Bot"
+channel = sys.argv[2]
 now = datetime.now()
 today = datetime.today().strftime("%A")
 
@@ -36,14 +40,12 @@ RE_IRC_LINE = re.compile(
 
 # Parse input.
 
-pong = 'PONG '
-
 
 # Connect.
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((host[0], int(host[1])))
 
-# Handshake.
+# Send User and Nick to server.
 client.send(('NICK ' + nick + '\r\n').encode())
 client.send(('USER ' + user + ' 0 * :' + real + '\r\n').encode())
 
@@ -152,8 +154,3 @@ while True:
             continue
 
         command_handler(m)
-
-
-
-
-
