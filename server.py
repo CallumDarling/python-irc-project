@@ -11,11 +11,11 @@ SOCKET_LIST = []
 NICK_MAP = {}
 CHANNEL_MAP = {}
 
-HOST = "127.0.0.1"
-PORT = 1234
+PORT = 6667
 CREATION_DATE = datetime.now()
 VERSION = "0.0.1"
 SERVERNAME = socket.gethostname()
+HOST = socket.gethostbyname(SERVERNAME)
 USER_MODES="DOQRSZaghilopswz"
 CHANNEL_MODES="CFILMPQSbcefgijklmnopqrstvz"
 
@@ -367,7 +367,7 @@ def main():
                     "state": STATE_CONNECTION_REQUEST,
                     "host": incoming_addr[0]
                 }
-                print("Received connection form {}".format(incoming_addr))
+                print("Received connection from {}".format(incoming_addr))
 
             else:
                 key = sock.fileno()
@@ -376,6 +376,11 @@ def main():
                 # Read message from the socket, up to MAX_MSG_LEN 
                 message = sock.recv(MAX_MSG_LEN)
                 message = message.decode()
+
+                # When a socket closes, it sends an empty message
+                # In which case, we need to handle it
+                if len(message) == 0:
+                    quit_handler(user, [], sock)
 
                 # Split the message by CR-LF
                 messages = message.split("\r\n")
