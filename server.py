@@ -15,7 +15,7 @@ PORT = 6667
 CREATION_DATE = datetime.now()
 VERSION = "0.0.1"
 SERVERNAME = socket.gethostname()
-HOST = socket.gethostbyname(SERVERNAME)
+HOST = "0.0.0.0"
 USER_MODES="DOQRSZaghilopswz"
 CHANNEL_MODES="CFILMPQSbcefgijklmnopqrstvz"
 
