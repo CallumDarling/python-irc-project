@@ -11,9 +11,9 @@ if len(sys.argv) != 3:
 
 # Variables
 host = sys.argv[1].split(":")
-nick = "CallumDarling"
-user = "ProBot"
-real = "IRC Bot"
+nick = "ProBot"
+user = "PROBot"
+real = "Pro Bot"
 channel = sys.argv[2]
 # Connect.
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
