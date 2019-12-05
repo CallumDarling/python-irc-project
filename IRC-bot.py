@@ -4,24 +4,19 @@ import re
 from datetime import datetime
 from random import randrange
 
-
+# Check to see if right number of command line arguments have been entered
 if len(sys.argv) != 3:
     print("Arguments: host:port #channel")
     exit()
 
-#python IRC-bot.py localhost:6667 IRCBot IRCBOT "IRC Bot" #TestChannel
-
-
-
+# Variables
 host = sys.argv[1].split(":")
 nick = "IRCBot"
 user = "IRCBOT"
 real = "IRC Bot"
 channel = sys.argv[2]
-now = datetime.now()
-today = datetime.today().strftime("%A")
 
-
+# IRC line regex
 RE_IRC_LINE = re.compile(
     """
     ^
@@ -38,7 +33,6 @@ RE_IRC_LINE = re.compile(
     $
     """, re.VERBOSE)
 
-# Parse input.
 
 
 # Connect.
@@ -72,7 +66,8 @@ def ping(me):
     client.send(pong_message.encode())
     return
 
-
+# if a message has been sent that begins with an !mark this funciton will be called
+# It return the response that the bot will give to each specific chat command
 def get_chat_response(mes):
     if mes.startswith("!time"):
         now = datetime.now()
@@ -89,7 +84,6 @@ def privmsg(me):
     par = me.group('params')
     mes = me.group('message')
     pref = me.group('prefix')
-    # print(f"P: {me.group('params')} \nM: {me.group('message')}")
 
     # determines if message came from channel or private message
     if par.startswith(" #"):  # channel
@@ -103,10 +97,11 @@ def privmsg(me):
     else:  # private message
         print(f"PM from {pref}: {mes}")
         recv = pref.split('!')[0]
-        content = "AbCdEfGhIjKlMnOp"
+        content = "American President Calvin Coolidge (1923-1929) used to like Vaseline being rubbed on his head while he ate breakfast in bed"
         with open('facts.txt') as file:
             content = get_random_line(file)
 
+    # If there is a response to the message send it to the user / channel that the original message came from
     if reply:
         reply = "PRIVMSG " + recv + " :"+content+"\r\n"
         print(reply)
@@ -124,12 +119,12 @@ def command_handler(me):
     # print(f"P:{prefix} C:{command} Pa:{params} M:{message}")
 
     # calls function depending on message type
-    switcher = {
+    commands = {
         "PING": ping,
         "PRIVMSG": privmsg,
     }
     try:
-        return switcher[command](me)
+        return commands[command](me)
     except Exception:
         return "CNS"
 
