@@ -17,7 +17,12 @@ real = "Pro Bot"
 channel = sys.argv[2]
 # Connect.
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect((host[0], int(host[1])))
+try:
+    client.connect((host[0], int(host[1])))
+except Exception as E:
+    print("Connection Failed: Make sure the server is on")
+    print(f"Error: {E}")
+    exit()
 
 # IRC line regex
 RE_IRC_LINE = re.compile(
@@ -110,8 +115,9 @@ def command_handler(me):
     # print(f"P:{prefix}\nC:{command}\nPa:{params}\nM:{message}")
 
     if(command=="433"):
-        newNick = nick+"_"
-        client.send(('NICK ' + newNick + '\r\n').encode())
+        global nick
+        nick = nick+"_"
+        client.send(('NICK ' + nick + '\r\n').encode())
         client.send(('USER ' + user + ' 0 * :' + real + '\r\n').encode())
         client.send(('JOIN '+ channel + '\r\n').encode())
         return
