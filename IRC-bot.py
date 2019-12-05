@@ -11,10 +11,13 @@ if len(sys.argv) != 3:
 
 # Variables
 host = sys.argv[1].split(":")
-nick = "IRCBot"
-user = "IRCBOT"
+nick = "CallumDarling"
+user = "ProBot"
 real = "IRC Bot"
 channel = sys.argv[2]
+# Connect.
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((host[0], int(host[1])))
 
 # IRC line regex
 RE_IRC_LINE = re.compile(
@@ -33,18 +36,6 @@ RE_IRC_LINE = re.compile(
     $
     """, re.VERBOSE)
 
-
-
-# Connect.
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect((host[0], int(host[1])))
-
-# Send User and Nick to server.
-client.send(('NICK ' + nick + '\r\n').encode())
-client.send(('USER ' + user + ' 0 * :' + real + '\r\n').encode())
-
-# Join channel
-client.send(('JOIN '+ channel + '\r\n').encode())
 
 
 # take random line from text file, alorithm taken from stackoverflow
@@ -116,8 +107,15 @@ def command_handler(me):
     command = me.group("command")
     params = (me.group("params") or "").split()
     message = me.group("message") or ""
-    # print(f"P:{prefix} C:{command} Pa:{params} M:{message}")
+    # print(f"P:{prefix}\nC:{command}\nPa:{params}\nM:{message}")
 
+    if(command=="433"):
+        newNick = nick+"_"
+        client.send(('NICK ' + newNick + '\r\n').encode())
+        client.send(('USER ' + user + ' 0 * :' + real + '\r\n').encode())
+        client.send(('JOIN '+ channel + '\r\n').encode())
+        return
+    
     # calls function depending on message type
     commands = {
         "PING": ping,
@@ -127,6 +125,16 @@ def command_handler(me):
         return commands[command](me)
     except Exception:
         return "CNS"
+
+
+
+
+# Send User and Nick to server.
+client.send(('NICK ' + nick + '\r\n').encode())
+client.send(('USER ' + user + ' 0 * :' + real + '\r\n').encode())
+
+# Join channel
+client.send(('JOIN '+ channel + '\r\n').encode())
 
 
 # Output and ping/pong.
