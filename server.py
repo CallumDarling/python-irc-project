@@ -1,5 +1,6 @@
 import socket
 import re
+import os
 import signal
 import sys
 import select 
@@ -11,11 +12,11 @@ SOCKET_LIST = []
 NICK_MAP = {}
 CHANNEL_MAP = {}
 
-PORT = 6667
+PORT = os.getenv("SERVER_PORT", 6667)
 CREATION_DATE = datetime.now()
 VERSION = "0.0.1"
 SERVERNAME = socket.gethostname()
-HOST = "0.0.0.0"
+HOST = os.getenv("SERVER_IP", "0.0.0.0")
 USER_MODES="DOQRSZaghilopswz"
 CHANNEL_MODES="CFILMPQSbcefgijklmnopqrstvz"
 
