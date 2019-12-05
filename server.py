@@ -239,8 +239,6 @@ def join_handler(user: dict, params: list, sock: socket.socket) -> dict:
                 "user_sockets": [sock],
             }
         else:
-            # TODO: Add password checks?
-
             # If the user is already in the channel - skip it
 
             if user["nick"] in channel["user_nicks"]:
@@ -350,27 +348,51 @@ def user_handler(user: dict, params: list, sock: socket.socket) -> dict or None:
     return user
 
 def main():
+    # Create server socket 
     main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Use SO_REUSEADDR so when crash occurs the ip is immediately released
     main_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     main_socket.bind((HOST, PORT))
-    main_socket.listen(5)
+    
+    # Listen to 10 connections at the time
+    main_socket.listen(10)
 
+    # Appending to the global socket list
     SOCKET_LIST.append(main_socket)
     print("Listening on {}:{}...".format(HOST, PORT))
     while True:
+
+        # Select porvides monitoring to the sockets
+        # When socket becomes readable, writeable or an error occurs it is returned
+        # Select returns trhee parmeters: ready to read, ready to write and an error list
+        # We only care about ready to read; therefore, the other two parameters are ignnored.
         r2r, _, _ = select.select(SOCKET_LIST, [], [], 0) 
+
+        # When a list of sockets is returned, iterate over them and process each of them individually.
         for sock in r2r:
+
+            # If a new connection is incoming, it will be written to the server socket
             if  sock == main_socket:
                 incoming_socket, incoming_addr = main_socket.accept() 
+
+                # Appending to the global socket list in order to keep track
                 SOCKET_LIST.append(incoming_socket)
+
+                # Since this is the first connection from this socket, we create a new user entry
+                # Use socket file descriptor as a unique identifier for a map key.
                 USER_MAP[incoming_socket.fileno()] = {
-                    "state": STATE_CONNECTION_REQUEST,
-                    "host": incoming_addr[0]
+                    "state": STATE_CONNECTION_REQUEST, # Set the state so we can check later on
+                    "host": incoming_addr[0] # Set the user host since it's required for some of the replies
                 }
                 print("Received connection from {}".format(incoming_addr))
 
             else:
+
+                # Get the key which is fd of socket
                 key = sock.fileno()
+
+                # Get the user that is making a request
                 user = USER_MAP[key]
 
                 # Read message from the socket, up to MAX_MSG_LEN 
@@ -393,6 +415,7 @@ def main():
                     if message == "" or "CAP" in message:
                         continue
                     
+                    # Match IRC regex 
                     m = RE_IRC_LINE.match(message)
                     if not m:
                         print("Invalid message: {}".format(message))
